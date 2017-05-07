@@ -32,7 +32,7 @@ let gweights = Array.of_list [0.129484966168870;0.279705391489277;0.381830050505
 
 let map_interval a b r s x = (r *. (b -. x) /. (b -. a)) +. (s *. (x -. a) /. (b -. a))
 
-let rec gkint f a b tol = 
+let gkint_single f a b tol = 
   let y  = (b -. a) *. 0.5 in
   let g  = fun x -> y *. (f (map_interval (-1.0) (1.0) a b x)) in
   let ggs = Array.map g gnodes in
@@ -42,11 +42,31 @@ let rec gkint f a b tol =
   let gquad = Array.fold_left (+.) 0.0 (Array.map2 ( *. ) ggs ggws) in
   let kquad = Array.fold_left (+.) 0.0 (Array.map2 ( *. ) gks gkws) in
   let err = 200.0 *. ( (abs_float (gquad -. kquad)) ** (1.5) ) in
-  let a1 = a in
-  let b1 = (a +. b) *. 0.5 in
-  let a2 = b1 in
-  let b2 = b in
-  if (err < tol) then kquad else ((gkint f a1 b1 tol) +. (gkint f a2 b2 tol))
+  (kquad,err)
+
+
+let gkint f a b tol = 
+  let i = ref 2 in
+  let err = ref 100.0 in
+  let integral = ref 100.0 in
+  while ( !err > tol ) do
+    let quads = Array.init !i (
+      fun j -> 
+        let nm1 = float_of_int (!i) in
+        let dx = (b -. a) /. nm1 in
+        let aa = a +. dx *. (float_of_int j) in
+        let bb = a +. dx *. (float_of_int (j+1)) in
+        gkint_single f aa bb tol
+    ) in
+    let integrals = Array.map fst quads in
+    let errs = Array.map snd quads in
+    err := Array.fold_left (+.) 0.0 errs;    
+    integral := Array.fold_left (+.) 0.0 integrals;    
+    i := !i + 1;
+  done;
+  !integral
+
+
 end;;
 
 
